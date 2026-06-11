@@ -25,6 +25,136 @@ const isActiveStatus = (status) => {
   return value === 'ACTIVA' || value === 'ACTIVE' || value === 'ACTIVO';
 };
 
+const getOperationButtonClass = (operationType) => {
+  const baseClass = 'w-full inline-flex items-center justify-center gap-2 text-white font-semibold px-5 py-3 rounded-xl transition';
+
+  if (operationType === 'deposit') {
+    return `${baseClass} bg-green-700 hover:bg-green-800 disabled:bg-green-400`;
+  }
+
+  return `${baseClass} bg-red-700 hover:bg-red-800 disabled:bg-red-400`;
+};
+
+const getOperationButtonLabel = (operationType, submitting) => {
+  if (submitting) {
+    return 'Procesando...';
+  }
+
+  if (operationType === 'deposit') {
+    return 'Depositar';
+  }
+
+  return 'Retirar';
+};
+
+const getOperationButtonIcon = (operationType) => {
+  if (operationType === 'deposit') {
+    return <ArrowDownCircle size={18} />;
+  }
+
+  return <ArrowUpCircle size={18} />;
+};
+
+const getOperationEndpoint = (operationType) => {
+  if (operationType === 'deposit') {
+    return '/accounts/teller/deposit';
+  }
+
+  return '/accounts/teller/withdrawal';
+};
+
+const getDefaultReference = (operationType) => {
+  if (operationType === 'deposit') {
+    return 'Depósito ventanilla';
+  }
+
+  return 'Retiro ventanilla';
+};
+
+const getSuccessMessage = (operationType) => {
+  if (operationType === 'deposit') {
+    return 'Depósito realizado correctamente.';
+  }
+
+  return 'Retiro realizado correctamente.';
+};
+
+const getReceiptOperationLabel = (operationType) => {
+  if (operationType === 'deposit') {
+    return 'Depósito';
+  }
+
+  return 'Retiro';
+};
+
+const buildCustomerName = (data) => {
+  return (
+    data?.fullName ||
+    `${data?.firstName || ''} ${data?.lastName || ''}`.trim() ||
+    data?.legalName ||
+    '-'
+  );
+};
+
+const buildCustomerFromHolder = (holder) => ({
+  id: holder.customerId,
+  customerId: holder.customerId,
+  fullName: holder.fullName,
+  customerType: holder.customerType,
+  status: holder.customerStatus,
+  identification: holder.holderIdentification,
+});
+
+const getCustomerSearchErrorMessage = (error) => {
+  if (!error.response) {
+    return 'No se puede conectar al party-service. Verifique que esté encendido.';
+  }
+
+  if (error.response.status === 404) {
+    return 'Cliente o cuenta no encontrada.';
+  }
+
+  return error.response?.data?.message || 'No se pudo consultar el cliente.';
+};
+
+const getAccountSearchErrorMessage = (error) => {
+  if (!error.response) {
+    return 'No se puede conectar al account-core-service o party-service. Verifique que los servicios estén encendidos.';
+  }
+
+  if (error.response.status === 404) {
+    return 'Cuenta no encontrada.';
+  }
+
+  return error.response?.data?.message || 'No se pudo consultar la cuenta.';
+};
+
+const getOperationErrorMessage = (error, operationType) => {
+  if (!error.response) {
+    return 'No se puede conectar al account-core-service. Verifique que esté encendido.';
+  }
+
+  const { status, data } = error.response;
+
+  if (status === 400 && operationType === 'withdrawal') {
+    return 'Fondos insuficientes para el retiro.';
+  }
+
+  if (status === 400) {
+    return data?.message || 'Datos inválidos para la operación.';
+  }
+
+  if (status === 404) {
+    return 'Cuenta no encontrada.';
+  }
+
+  if (status === 503) {
+    return 'Error en el sistema contable, intente nuevamente.';
+  }
+
+  return data?.message || 'Error temporal, intente en unos minutos.';
+};
+
 export function TellerOperationPage() {
   const auth = useAuth() || {};
   const { user = {} } = auth;
@@ -48,15 +178,6 @@ export function TellerOperationPage() {
 
   const tellerId = user?.id || user?.coreUserId || 1;
 
-  const buildCustomerName = (data) => {
-    return (
-      data?.fullName ||
-      `${data?.firstName || ''} ${data?.lastName || ''}`.trim() ||
-      data?.legalName ||
-      '-'
-    );
-  };
-
   const handleSearchCustomer = async () => {
     setMessage('');
     setCustomer(null);
@@ -70,35 +191,20 @@ export function TellerOperationPage() {
     setLoadingCustomer(true);
 
     try {
+      const response = await partyApi.get(`/api/v2/customers/${customerSearch.trim()}`);
+      setCustomer(response.data);
+      setMessage('Cliente encontrado correctamente.');
+    } catch (firstError) {
       try {
-        const response = await partyApi.get(`/api/v2/customers/${customerSearch.trim()}`);
-        setCustomer(response.data);
-        setMessage('Cliente encontrado correctamente.');
-      } catch (firstError) {
         const response = await partyApi.get(`/api/v2/customers/by-account/${customerSearch.trim()}`);
         const holder = response.data;
 
         setAccountHolder(holder);
         setAccountSearch(String(holder.accountId || holder.accountNumber || ''));
-
-        setCustomer({
-          id: holder.customerId,
-          customerId: holder.customerId,
-          fullName: holder.fullName,
-          customerType: holder.customerType,
-          status: holder.customerStatus,
-          identification: holder.holderIdentification,
-        });
-
+        setCustomer(buildCustomerFromHolder(holder));
         setMessage('Cliente encontrado por número de cuenta.');
-      }
-    } catch (error) {
-      if (!error.response) {
-        setMessage('No se puede conectar al party-service. Verifique que esté encendido.');
-      } else if (error.response.status === 404) {
-        setMessage('Cliente o cuenta no encontrada.');
-      } else {
-        setMessage(error.response?.data?.message || 'No se pudo consultar el cliente.');
+      } catch (error) {
+        setMessage(getCustomerSearchErrorMessage(error));
       }
     } finally {
       setLoadingCustomer(false);
@@ -127,15 +233,7 @@ export function TellerOperationPage() {
 
         setAccountHolder(holder);
         accountIdForBalance = String(holder.accountId);
-
-        setCustomer({
-          id: holder.customerId,
-          customerId: holder.customerId,
-          fullName: holder.fullName,
-          customerType: holder.customerType,
-          status: holder.customerStatus,
-          identification: holder.holderIdentification,
-        });
+        setCustomer(buildCustomerFromHolder(holder));
       }
 
       const balanceResponse = await accountApi.get(`/accounts/${accountIdForBalance}/balance`);
@@ -148,16 +246,61 @@ export function TellerOperationPage() {
 
       setMessage('Cuenta consultada correctamente.');
     } catch (error) {
-      if (!error.response) {
-        setMessage('No se puede conectar al account-core-service o party-service. Verifique que los servicios estén encendidos.');
-      } else if (error.response.status === 404) {
-        setMessage('Cuenta no encontrada.');
-      } else {
-        setMessage(error.response?.data?.message || 'No se pudo consultar la cuenta.');
-      }
+      setMessage(getAccountSearchErrorMessage(error));
     } finally {
       setLoadingAccount(false);
     }
+  };
+
+  const validateOperationForm = () => {
+    if (!customer) {
+      return 'Primero debe buscar un cliente o una cuenta.';
+    }
+
+    if (!balance) {
+      return 'Primero debe consultar la cuenta y su saldo.';
+    }
+
+    if (!isActiveStatus(balance.status)) {
+      return 'La cuenta no está activa. No se puede realizar la operación.';
+    }
+
+    if (!amount || Number(amount) <= 0) {
+      return 'Ingrese un monto válido.';
+    }
+
+    if (operationType === 'withdrawal' && Number(amount) > Number(balance.availableBalance)) {
+      return 'Fondos insuficientes para el retiro.';
+    }
+
+    return '';
+  };
+
+  const buildOperationPayload = () => ({
+    accountId: Number(balance.accountId || accountHolder?.accountId || accountSearch),
+    amount: Number(amount),
+    tellerId: Number(tellerId),
+    branchId: Number(branchId),
+    transactionUuid: crypto.randomUUID(),
+    reference: reference.trim() || getDefaultReference(operationType),
+  });
+
+  const buildReceipt = (responseData, payload) => ({
+    ...responseData,
+    operationType,
+    amount: Number(amount),
+    customerName: buildCustomerName(customer),
+    customerIdentification: customer.identification,
+    accountId: payload.accountId,
+    accountNumber: balance.accountNumber || accountHolder?.accountNumber,
+    reference: payload.reference,
+    transactionUuid: payload.transactionUuid,
+    dateTime: new Date().toLocaleString('es-EC'),
+  });
+
+  const refreshBalance = async (accountId) => {
+    const balanceResponse = await accountApi.get(`/accounts/${accountId}/balance`);
+    setBalance(balanceResponse.data);
   };
 
   const handleSubmitOperation = async (event) => {
@@ -165,96 +308,38 @@ export function TellerOperationPage() {
     setMessage('');
     setReceipt(null);
 
-    if (!customer) {
-      setMessage('Primero debe buscar un cliente o una cuenta.');
+    const validationMessage = validateOperationForm();
+
+    if (validationMessage) {
+      setMessage(validationMessage);
       return;
     }
 
-    if (!balance) {
-      setMessage('Primero debe consultar la cuenta y su saldo.');
-      return;
-    }
-
-    if (!isActiveStatus(balance.status)) {
-      setMessage('La cuenta no está activa. No se puede realizar la operación.');
-      return;
-    }
-
-    if (!amount || Number(amount) <= 0) {
-      setMessage('Ingrese un monto válido.');
-      return;
-    }
-
-    if (operationType === 'withdrawal' && Number(amount) > Number(balance.availableBalance)) {
-      setMessage('Fondos insuficientes para el retiro.');
-      return;
-    }
-
-    const payload = {
-      accountId: Number(balance.accountId || accountHolder?.accountId || accountSearch),
-      amount: Number(amount),
-      tellerId: Number(tellerId),
-      branchId: Number(branchId),
-      transactionUuid: crypto.randomUUID(),
-      reference: reference.trim() || (operationType === 'deposit' ? 'Depósito ventanilla' : 'Retiro ventanilla'),
-    };
-
-    const endpoint =
-      operationType === 'deposit'
-        ? '/accounts/teller/deposit'
-        : '/accounts/teller/withdrawal';
+    const payload = buildOperationPayload();
+    const endpoint = getOperationEndpoint(operationType);
 
     setSubmitting(true);
 
     try {
       const response = await accountApi.post(endpoint, payload);
 
-      setReceipt({
-        ...response.data,
-        operationType,
-        amount: Number(amount),
-        customerName: buildCustomerName(customer),
-        customerIdentification: customer.identification,
-        accountId: payload.accountId,
-        accountNumber: balance.accountNumber || accountHolder?.accountNumber,
-        reference: payload.reference,
-        transactionUuid: payload.transactionUuid,
-        dateTime: new Date().toLocaleString('es-EC'),
-      });
-
-      setMessage(
-        operationType === 'deposit'
-          ? 'Depósito realizado correctamente.'
-          : 'Retiro realizado correctamente.'
-      );
-
-      const balanceResponse = await accountApi.get(`/accounts/${payload.accountId}/balance`);
-      setBalance(balanceResponse.data);
+      setReceipt(buildReceipt(response.data, payload));
+      setMessage(getSuccessMessage(operationType));
+      await refreshBalance(payload.accountId);
 
       setAmount('');
       setReference('');
     } catch (error) {
-      if (!error.response) {
-        setMessage('No se puede conectar al account-core-service. Verifique que esté encendido.');
-      } else if (error.response.status === 400) {
-        setMessage(
-          operationType === 'withdrawal'
-            ? 'Fondos insuficientes para el retiro.'
-            : error.response?.data?.message || 'Datos inválidos para la operación.'
-        );
-      } else if (error.response.status === 404) {
-        setMessage('Cuenta no encontrada.');
-      } else if (error.response.status === 503) {
-        setMessage('Error en el sistema contable, intente nuevamente.');
-      } else {
-        setMessage(error.response?.data?.message || 'Error temporal, intente en unos minutos.');
-      }
+      setMessage(getOperationErrorMessage(error, operationType));
     } finally {
       setSubmitting(false);
     }
   };
 
   const accountIsBlocked = balance && !isActiveStatus(balance.status);
+  const operationButtonClass = getOperationButtonClass(operationType);
+  const operationButtonIcon = getOperationButtonIcon(operationType);
+  const operationButtonLabel = getOperationButtonLabel(operationType, submitting);
 
   return (
     <div className="space-y-8">
@@ -455,14 +540,10 @@ export function TellerOperationPage() {
             <button
               type="submit"
               disabled={submitting || accountIsBlocked}
-              className={`w-full inline-flex items-center justify-center gap-2 text-white font-semibold px-5 py-3 rounded-xl transition ${
-                operationType === 'deposit'
-                  ? 'bg-green-700 hover:bg-green-800 disabled:bg-green-400'
-                  : 'bg-red-700 hover:bg-red-800 disabled:bg-red-400'
-              }`}
+              className={operationButtonClass}
             >
-              {operationType === 'deposit' ? <ArrowDownCircle size={18} /> : <ArrowUpCircle size={18} />}
-              {submitting ? 'Procesando...' : operationType === 'deposit' ? 'Depositar' : 'Retirar'}
+              {operationButtonIcon}
+              {operationButtonLabel}
             </button>
           </div>
         </div>
@@ -501,7 +582,7 @@ export function TellerOperationPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-slate-700">
             <p><span className="font-medium">Transacción:</span> {receipt.transactionId || receipt.transactionUuid}</p>
             <p><span className="font-medium">Fecha/Hora:</span> {receipt.dateTime}</p>
-            <p><span className="font-medium">Operación:</span> {receipt.operationType === 'deposit' ? 'Depósito' : 'Retiro'}</p>
+            <p><span className="font-medium">Operación:</span> {getReceiptOperationLabel(receipt.operationType)}</p>
             <p><span className="font-medium">Monto:</span> ${Number(receipt.amount).toFixed(2)}</p>
             <p><span className="font-medium">Cliente:</span> {receipt.customerName}</p>
             <p><span className="font-medium">Identificación:</span> {receipt.customerIdentification || '-'}</p>

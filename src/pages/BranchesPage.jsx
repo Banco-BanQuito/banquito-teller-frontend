@@ -34,6 +34,69 @@ export const BranchesPage = () => {
     fetchBranches();
   }, []);
 
+  const renderBranchesContent = () => {
+    if (loading) {
+      return (
+        <div className="p-8 text-center text-slate-500">
+          Cargando sucursales...
+        </div>
+      );
+    }
+
+    if (branches.length === 0) {
+      return (
+        <div className="p-8 text-center text-slate-500">
+          No hay sucursales registradas.
+        </div>
+      );
+    }
+
+    return (
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-slate-50 border-b border-slate-200">
+            <tr>
+              <th className="p-4 font-semibold text-slate-600">Código</th>
+              <th className="p-4 font-semibold text-slate-600">Nombre</th>
+              <th className="p-4 font-semibold text-slate-600">Ciudad</th>
+              <th className="p-4 font-semibold text-slate-600">Estado</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {branches.map((branch) => (
+              <tr
+                key={branch.id || branch.branchCode}
+                className="border-b border-slate-100 hover:bg-slate-50"
+              >
+                <td className="p-4 font-semibold text-slate-800">
+                  {branch.branchCode || branch.code || '-'}
+                </td>
+
+                <td className="p-4 text-slate-700">
+                  <div className="flex items-center gap-2">
+                    <MapPin size={16} className="text-blue-800" />
+                    {branch.name || '-'}
+                  </div>
+                </td>
+
+                <td className="p-4 text-slate-700">
+                  {branch.city || '-'}
+                </td>
+
+                <td className="p-4">
+                  <span className="inline-flex items-center rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
+                    Disponible
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -68,55 +131,7 @@ export const BranchesPage = () => {
           </div>
         </div>
 
-        {loading ? (
-          <div className="p-8 text-center text-slate-500">
-            Cargando sucursales...
-          </div>
-        ) : branches.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 border-b border-slate-200">
-                <tr>
-                  <th className="p-4 font-semibold text-slate-600">Código</th>
-                  <th className="p-4 font-semibold text-slate-600">Nombre</th>
-                  <th className="p-4 font-semibold text-slate-600">Ciudad</th>
-                  <th className="p-4 font-semibold text-slate-600">Estado</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {branches.map((branch) => (
-                  <tr key={branch.id || branch.branchCode} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="p-4 font-semibold text-slate-800">
-                      {branch.branchCode || branch.code || '-'}
-                    </td>
-
-                    <td className="p-4 text-slate-700">
-                      <div className="flex items-center gap-2">
-                        <MapPin size={16} className="text-blue-800" />
-                        {branch.name || '-'}
-                      </div>
-                    </td>
-
-                    <td className="p-4 text-slate-700">
-                      {branch.city || '-'}
-                    </td>
-
-                    <td className="p-4">
-                      <span className="inline-flex items-center rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
-                        Disponible
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="p-8 text-center text-slate-500">
-            No hay sucursales registradas.
-          </div>
-        )}
+        {renderBranchesContent()}
       </div>
     </div>
   );

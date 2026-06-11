@@ -1,11 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { AuthContext } from './authContextObject';
-
 import { loginStaff } from '../api/authApi';
 
 const STORAGE_KEY = 'banquito_auth';
 
-const DEFAULT_AUTH = { isAuthenticated: false, portal: null, user: null };
+const DEFAULT_AUTH = {
+  isAuthenticated: false,
+  portal: null,
+  user: null,
+};
 
 function loadStoredAuth() {
   try {
@@ -19,15 +22,7 @@ function loadStoredAuth() {
 export function AuthProvider({ children }) {
   const [auth, setAuth] = useState(loadStoredAuth);
 
-  useEffect(() => {
-    const handleLogout = () => {
-      logout();
-    };
-    window.addEventListener('logout', handleLogout);
-    return () => window.removeEventListener('logout', handleLogout);
-  }, []);
-
-  const login = async (username, password) => {
+  const login = useCallback(async (username, password) => {
     try {
       const res = await loginStaff(username, password);
       const data = res.data;
@@ -48,10 +43,11 @@ export function AuthProvider({ children }) {
 
       setAuth(newAuth);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(newAuth));
+
       return userData;
     } catch (err) {
       if (import.meta.env.DEV) {
-        console.error('❌ Error en login - Detalles:', {
+        console.error('Error en login de cajero:', {
           status: err.response?.status,
           statusText: err.response?.statusText,
           message: err.response?.data?.message,
@@ -59,11 +55,12 @@ export function AuthProvider({ children }) {
           url: err.config?.url,
         });
       }
+
       throw err;
     }
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     const newAuth = {
       isAuthenticated: false,
       portal: null,
@@ -72,10 +69,25 @@ export function AuthProvider({ children }) {
 
     setAuth(newAuth);
     localStorage.removeItem(STORAGE_KEY);
-  };
+  }, []);
+
+  useEffect(() => {
+    const handleLogout = () => {
+      logout();
+    };
+
+    window.addEventListener('logout', handleLogout);
+    return () => window.removeEventListener('logout', handleLogout);
+  }, [logout]);
+
+  const contextValue = useMemo(() => ({
+    ...auth,
+    login,
+    logout,
+  }), [auth, login, logout]);
 
   return (
-    <AuthContext.Provider value={{ ...auth, login, logout }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );
