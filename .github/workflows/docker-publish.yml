@@ -29,3 +29,6 @@ jobs:
           file: Dockerfile
           push: true
           tags: ghcr.io/banco-banquito/teller-frontend:latest
+          build-args: |
+            VITE_ACCOUNT_API_BASE_URL=http://${{ secrets.VM_PUBLIC_IP }}:8081/api/v2
+            VITE_PARTY_API_BASE_URL=http://${{ secrets.VM_PUBLIC_IP }}:8083
