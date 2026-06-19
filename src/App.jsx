@@ -10,6 +10,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { CustomerSearchPage } from './pages/customers/CustomerSearchPage';
 import { BranchesPage } from './pages/BranchesPage';
 import { TellerOperationPage } from './pages/TellerOperationPage';
+import { EndOfDayPage } from './pages/EndOfDayPage';
 
 import './index.css';
 
@@ -56,6 +57,7 @@ const router = createBrowserRouter(
         { path: 'clientes', element: <CustomerSearchPage /> },
         { path: 'ventanilla', element: <TellerOperationPage /> },
         { path: 'sucursales', element: <BranchesPage /> },
+        { path: 'eod', element: <EndOfDayPage /> },
       ],
     },
     {

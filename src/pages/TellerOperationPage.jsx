@@ -155,6 +155,179 @@ const getOperationErrorMessage = (error, operationType) => {
   return data?.message || 'Error temporal, intente en unos minutos.';
 };
 
+const printReceipt = (receipt) => {
+  const isDeposit = receipt.operationType === 'deposit';
+  const operationLabel = isDeposit ? 'Depósito en Ventanilla' : 'Retiro en Ventanilla';
+  const accentColor = isDeposit ? '#15803d' : '#b91c1c';
+  const accentLight = isDeposit ? '#f0fdf4' : '#fff1f2';
+  const accentBorder = isDeposit ? '#86efac' : '#fecaca';
+  const signSymbol = isDeposit ? '+' : '−';
+  const txId = receipt.transactionId || receipt.transactionUuid || '';
+
+  const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Comprobante BanQuito</title>
+  <style>
+    @page { size: A4; margin: 18mm 20mm; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 10pt;
+      color: #1e293b;
+      background: #fff;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    /* ── HEADER ── */
+    .header {
+      background: linear-gradient(135deg, #1e3a5f 0%, #1d4ed8 100%);
+      color: #fff;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-radius: 8px 8px 0 0;
+    }
+    .logo { font-size: 18pt; font-weight: 900; letter-spacing: -0.5px; }
+    .logo span { color: #93c5fd; }
+    .header-right { text-align: right; }
+    .badge {
+      display: inline-block;
+      background: rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.4);
+      border-radius: 12px;
+      padding: 2px 10px;
+      font-size: 7.5pt;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    .op-type { font-size: 13pt; font-weight: 700; }
+    .op-sub  { font-size: 7.5pt; color: #bfdbfe; margin-top: 1px; text-transform: uppercase; letter-spacing: 0.5px; }
+    /* ── AMOUNT BOX ── */
+    .amount-box {
+      background: ${accentLight};
+      border: 1.5px solid ${accentBorder};
+      border-radius: 6px;
+      text-align: center;
+      padding: 12px 0 10px;
+      margin: 14px 0 10px;
+    }
+    .amount-label { font-size: 7pt; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 4px; }
+    .amount-value { font-size: 28pt; font-weight: 900; color: ${accentColor}; letter-spacing: -1px; }
+    .amount-cur   { font-size: 10pt; font-weight: 700; color: ${accentColor}; vertical-align: super; margin-left: 2px; }
+    /* ── SECTIONS ── */
+    .section-title {
+      font-size: 7pt; font-weight: 700; color: #94a3b8;
+      text-transform: uppercase; letter-spacing: 0.8px;
+      margin: 10px 0 4px;
+      padding-bottom: 3px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    td { padding: 5px 2px; font-size: 9pt; border-bottom: 1px solid #f1f5f9; }
+    td:first-child { color: #64748b; font-weight: 500; width: 44%; }
+    td:last-child  { color: #1e293b; font-weight: 600; text-align: right; }
+    tr:last-child td { border-bottom: none; }
+    /* ── BALANCE ROW ── */
+    .balance-row {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      margin-top: 10px;
+    }
+    .balance-label { font-size: 8.5pt; color: #475569; font-weight: 500; }
+    .balance-val   { font-size: 13pt; font-weight: 900; color: #1e293b; }
+    /* ── TX BOX ── */
+    .tx-box {
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 7px 12px;
+      margin-top: 10px;
+    }
+    .tx-label { font-size: 7pt; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 3px; }
+    .tx-id    { font-family: 'Courier New', monospace; font-size: 8pt; color: #475569; word-break: break-all; }
+    /* ── FOOTER ── */
+    .footer {
+      border-top: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0 0;
+      margin-top: 12px;
+    }
+    .footer-note { font-size: 7.5pt; color: #94a3b8; }
+    .footer-web  { font-size: 7.5pt; color: #3b82f6; font-weight: 700; }
+    /* ── CARD WRAPPER ── */
+    .card { border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
+    .card-body { padding: 0 16px 14px; }
+    .status-ok { color: ${accentColor}; font-weight: 700; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="header">
+    <div class="logo">Ban<span>Quito</span></div>
+    <div class="header-right">
+      <div><span class="badge">VENTANILLA</span></div>
+      <div class="op-type">${operationLabel}</div>
+      <div class="op-sub">Comprobante de operación</div>
+    </div>
+  </div>
+
+  <div class="card-body">
+    <div class="amount-box">
+      <div class="amount-label">Monto de la operación</div>
+      <div class="amount-value">${signSymbol}&nbsp;$${Number(receipt.amount).toFixed(2)}<span class="amount-cur">USD</span></div>
+    </div>
+
+    <div class="section-title">Datos del cliente</div>
+    <table>
+      <tr><td>Cliente</td><td>${receipt.customerName}</td></tr>
+      <tr><td>Identificación</td><td>${receipt.customerIdentification || '—'}</td></tr>
+      <tr><td>N.º de cuenta</td><td>${receipt.accountNumber || receipt.accountId}</td></tr>
+    </table>
+
+    <div class="section-title">Detalles de la transacción</div>
+    <table>
+      <tr><td>Tipo de operación</td><td>${operationLabel}</td></tr>
+      <tr><td>Fecha y hora</td><td>${receipt.dateTime}</td></tr>
+      <tr><td>Referencia</td><td>${receipt.reference}</td></tr>
+      <tr><td>Estado</td><td class="status-ok">✓ COMPLETADA</td></tr>
+    </table>
+
+    <div class="balance-row">
+      <span class="balance-label">Saldo disponible tras operación</span>
+      <span class="balance-val">$${Number(receipt.newBalance || 0).toFixed(2)} USD</span>
+    </div>
+
+    <div class="tx-box">
+      <div class="tx-label">N.º de transacción</div>
+      <div class="tx-id">${txId}</div>
+    </div>
+
+    <div class="footer">
+      <span class="footer-note">Conserve este comprobante como respaldo de su operación</span>
+      <span class="footer-web">banquito.edu.ec</span>
+    </div>
+  </div>
+</div>
+</body>
+</html>`;
+
+  const win = window.open('', '_blank', 'width=700,height=860,scrollbars=yes');
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => { win.print(); }, 500);
+};
+
 export function TellerOperationPage() {
   const auth = useAuth() || {};
   const { user = {} } = auth;
@@ -166,21 +339,58 @@ export function TellerOperationPage() {
   const [branchId, setBranchId] = React.useState('1');
 
   const [customer, setCustomer] = React.useState(null);
+  const [customerAccounts, setCustomerAccounts] = React.useState(null);
   const [accountHolder, setAccountHolder] = React.useState(null);
   const [balance, setBalance] = React.useState(null);
   const [operationType, setOperationType] = React.useState('deposit');
 
   const [message, setMessage] = React.useState('');
   const [loadingCustomer, setLoadingCustomer] = React.useState(false);
+  const [loadingAccounts, setLoadingAccounts] = React.useState(false);
   const [loadingAccount, setLoadingAccount] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
   const [receipt, setReceipt] = React.useState(null);
 
   const tellerId = user?.id || user?.coreUserId || 1;
 
+  const fetchCustomerAccounts = async (customerId) => {
+    setLoadingAccounts(true);
+    setCustomerAccounts(null);
+    setBalance(null);
+    setAccountHolder(null);
+    try {
+      const response = await accountApi.get(`/accounts/customer/${customerId}`);
+      setCustomerAccounts(response.data || []);
+    } catch {
+      setCustomerAccounts([]);
+    } finally {
+      setLoadingAccounts(false);
+    }
+  };
+
+  const handleSelectAccount = (acc) => {
+    setAccountSearch(String(acc.accountId));
+    setBalance({
+      accountId: acc.accountId,
+      accountNumber: acc.accountNumber,
+      availableBalance: acc.availableBalance,
+      accountingBalance: acc.accountingBalance,
+      status: acc.status,
+      currency: acc.currency,
+    });
+    setReceipt(null);
+    setMessage(
+      isActiveStatus(acc.status)
+        ? 'Cuenta seleccionada correctamente.'
+        : 'La cuenta no está activa. No se puede realizar depósito ni retiro.'
+    );
+  };
+
   const handleSearchCustomer = async () => {
     setMessage('');
     setCustomer(null);
+    setCustomerAccounts(null);
+    setBalance(null);
     setReceipt(null);
 
     if (!customerSearch.trim()) {
@@ -192,8 +402,10 @@ export function TellerOperationPage() {
 
     try {
       const response = await partyApi.get(`/api/v2/customers/${customerSearch.trim()}`);
-      setCustomer(response.data);
+      const found = response.data;
+      setCustomer(found);
       setMessage('Cliente encontrado correctamente.');
+      await fetchCustomerAccounts(found.id || found.customerId);
     } catch (firstError) {
       try {
         const response = await partyApi.get(`/api/v2/customers/by-account/${customerSearch.trim()}`);
@@ -203,6 +415,7 @@ export function TellerOperationPage() {
         setAccountSearch(String(holder.accountId || holder.accountNumber || ''));
         setCustomer(buildCustomerFromHolder(holder));
         setMessage('Cliente encontrado por número de cuenta.');
+        await fetchCustomerAccounts(holder.customerId);
       } catch (error) {
         setMessage(getCustomerSearchErrorMessage(error));
       }
@@ -301,6 +514,15 @@ export function TellerOperationPage() {
   const refreshBalance = async (accountId) => {
     const balanceResponse = await accountApi.get(`/accounts/${accountId}/balance`);
     setBalance(balanceResponse.data);
+    setCustomerAccounts(prev =>
+      prev
+        ? prev.map(acc =>
+            acc.accountId === accountId
+              ? { ...acc, availableBalance: balanceResponse.data.availableBalance, accountingBalance: balanceResponse.data.accountingBalance }
+              : acc
+          )
+        : prev
+    );
   };
 
   const handleSubmitOperation = async (event) => {
@@ -414,57 +636,70 @@ export function TellerOperationPage() {
               <Banknote size={22} className="text-blue-800" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-slate-800">Consultar cuenta</h2>
+              <h2 className="text-xl font-bold text-slate-800">Cuentas del cliente</h2>
               <p className="text-sm text-slate-500">
-                Ingrese ID de cuenta o número de cuenta.
+                Seleccione la cuenta para operar.
               </p>
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3">
-            <input
-              type="text"
-              value={accountSearch}
-              onChange={(event) => {
-                setAccountSearch(event.target.value);
-                setBalance(null);
-                setAccountHolder(null);
-                setReceipt(null);
-                setMessage('');
-              }}
-              placeholder="Ejemplo: 1 o 2200000001"
-              className="w-full min-w-0 flex-1 rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-700"
-            />
+          {!customer && (
+            <p className="text-sm text-slate-400 italic">Primero busque un cliente.</p>
+          )}
 
-            <button
-              type="button"
-              onClick={handleSearchAccount}
-              disabled={loadingAccount}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-900 disabled:bg-slate-400 text-white font-semibold px-5 py-3 rounded-xl transition whitespace-nowrap"
-            >
-              <Search size={18} />
-              {loadingAccount ? 'Consultando...' : 'Saldo'}
-            </button>
-          </div>
+          {loadingAccounts && (
+            <p className="text-sm text-slate-500">Cargando cuentas...</p>
+          )}
+
+          {customerAccounts !== null && !loadingAccounts && customerAccounts.length === 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3">
+              <AlertCircle size={18} className="text-amber-600 shrink-0" />
+              <p className="text-sm text-amber-800 font-medium">Este cliente no tiene cuentas registradas.</p>
+            </div>
+          )}
+
+          {customerAccounts && customerAccounts.length > 0 && (
+            <div className="space-y-3">
+              {customerAccounts.map((acc) => {
+                const active = isActiveStatus(acc.status);
+                const selected = balance?.accountId === acc.accountId;
+                return (
+                  <div
+                    key={acc.accountId}
+                    className={`border rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 transition
+                      ${selected ? 'border-blue-500 bg-blue-50' : active ? 'border-slate-200 bg-slate-50 hover:border-blue-300' : 'border-red-200 bg-red-50 opacity-70'}`}
+                  >
+                    <div className="text-sm text-slate-700 space-y-1">
+                      <p className="font-semibold text-slate-900">{acc.accountNumber}</p>
+                      <p>
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-700'}`}>
+                          {String(acc.status?.value || acc.status || '').toUpperCase()}
+                        </span>
+                      </p>
+                      <p><span className="font-medium">Disponible:</span> ${Number(acc.availableBalance || 0).toFixed(2)} {acc.currency || 'USD'}</p>
+                      <p><span className="font-medium">Contable:</span> ${Number(acc.accountingBalance || 0).toFixed(2)}</p>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={!active}
+                      onClick={() => handleSelectAccount(acc)}
+                      className={`shrink-0 px-4 py-2 rounded-xl text-sm font-semibold transition
+                        ${selected ? 'bg-blue-700 text-white' : active ? 'bg-slate-800 hover:bg-slate-900 text-white' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`}
+                    >
+                      {selected ? 'Seleccionada' : 'Seleccionar'}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           {balance && (
-            <div className={`${accountIsBlocked ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'} border rounded-xl p-4`}>
-              <p className={`font-semibold mb-3 ${accountIsBlocked ? 'text-red-800' : 'text-slate-800'}`}>
-                Datos de cuenta
+            <div className={`${accountIsBlocked ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'} border rounded-xl p-3`}>
+              <p className={`text-xs font-semibold ${accountIsBlocked ? 'text-red-700' : 'text-green-700'}`}>
+                {accountIsBlocked ? 'Cuenta inactiva — operación bloqueada' : `Cuenta activa · Saldo disponible: $${Number(balance.availableBalance || 0).toFixed(2)}`}
               </p>
-
-              <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 text-sm ${accountIsBlocked ? 'text-red-900' : 'text-slate-700'}`}>
-                <p><span className="font-medium">Cuenta:</span> {balance.accountNumber || accountHolder?.accountNumber || accountSearch}</p>
-                <p><span className="font-medium">Estado:</span> {balance.status || '-'}</p>
-                <p><span className="font-medium">Saldo disponible:</span> ${Number(balance.availableBalance || 0).toFixed(2)}</p>
-                <p><span className="font-medium">Saldo contable:</span> ${Number(balance.accountingBalance || 0).toFixed(2)}</p>
-              </div>
-
-              {accountIsBlocked && (
-                <p className="text-sm text-red-800 mt-3 font-medium">
-                  Esta cuenta no está activa, por lo tanto la operación queda bloqueada.
-                </p>
-              )}
             </div>
           )}
         </div>
@@ -593,7 +828,7 @@ export function TellerOperationPage() {
 
           <button
             type="button"
-            onClick={() => window.print()}
+            onClick={() => printReceipt(receipt)}
             className="mt-5 inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-900 text-white font-semibold px-5 py-3 rounded-xl transition"
           >
             <ReceiptText size={18} />

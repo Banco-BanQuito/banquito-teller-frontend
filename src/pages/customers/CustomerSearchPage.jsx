@@ -1,10 +1,20 @@
 import React from 'react';
 import axios from 'axios';
-import { Search, UserCheck, AlertCircle } from 'lucide-react';
+import { Search, UserCheck, AlertCircle, CreditCard } from 'lucide-react';
 
 const partyApi = axios.create({
   baseURL: import.meta.env.VITE_PARTY_API_BASE_URL || 'http://localhost:8083',
   timeout: Number(import.meta.env.VITE_API_TIMEOUT || 10000),
+});
+
+const buildCustomerFromHolder = (holder) => ({
+  id: holder.customerId,
+  customerId: holder.customerId,
+  fullName: holder.fullName,
+  customerType: holder.customerType,
+  status: holder.customerStatus,
+  identification: holder.holderIdentification,
+  accountNumber: holder.accountNumber,
 });
 
 export function CustomerSearchPage() {
@@ -12,13 +22,15 @@ export function CustomerSearchPage() {
   const [customer, setCustomer] = React.useState(null);
   const [message, setMessage] = React.useState('');
   const [loading, setLoading] = React.useState(false);
+  const [foundByAccount, setFoundByAccount] = React.useState(false);
 
   const handleSearch = async () => {
     setMessage('');
     setCustomer(null);
+    setFoundByAccount(false);
 
     if (!searchValue.trim()) {
-      setMessage('Ingrese una cédula, RUC o ID del cliente.');
+      setMessage('Ingrese una cédula, RUC, ID del cliente o número de cuenta.');
       return;
     }
 
@@ -28,17 +40,28 @@ export function CustomerSearchPage() {
       const response = await partyApi.get(`/api/v2/customers/${searchValue.trim()}`);
       setCustomer(response.data);
       setMessage('Cliente encontrado correctamente.');
-    } catch (error) {
-      if (!error.response) {
-        setMessage('No se puede conectar al party-service. Verifique que esté encendido.');
-      } else if (error.response.status === 404) {
-        setMessage('Cliente no encontrado.');
-      } else {
-        setMessage(error.response?.data?.message || 'No se pudo consultar el cliente.');
+    } catch {
+      try {
+        const response = await partyApi.get(`/api/v2/customers/by-account/${searchValue.trim()}`);
+        setCustomer(buildCustomerFromHolder(response.data));
+        setFoundByAccount(true);
+        setMessage('Cliente encontrado por número de cuenta.');
+      } catch (error) {
+        if (!error.response) {
+          setMessage('No se puede conectar al party-service. Verifique que esté encendido.');
+        } else if (error.response.status === 404) {
+          setMessage('Cliente o cuenta no encontrada.');
+        } else {
+          setMessage(error.response?.data?.message || 'No se pudo consultar el cliente.');
+        }
       }
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleKeyDown = (event) => {
+    if (event.key === 'Enter') handleSearch();
   };
 
   const fullName =
@@ -59,8 +82,12 @@ export function CustomerSearchPage() {
       </div>
 
       {message && (
-        <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-4 flex items-start gap-3">
-          <AlertCircle size={20} className="mt-0.5" />
+        <div className={`border rounded-xl p-4 flex items-start gap-3 ${
+          message.includes('encontrado')
+            ? 'bg-green-50 border-green-200 text-green-800'
+            : 'bg-amber-50 border-amber-200 text-amber-800'
+        }`}>
+          <AlertCircle size={20} className="mt-0.5 shrink-0" />
           <span>{message}</span>
         </div>
       )}
@@ -68,7 +95,7 @@ export function CustomerSearchPage() {
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-5 max-w-3xl">
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-2">
-            Identificación o ID del cliente
+            Cédula, RUC, ID de cliente o número de cuenta
           </label>
 
           <div className="flex gap-3">
@@ -76,7 +103,8 @@ export function CustomerSearchPage() {
               type="text"
               value={searchValue}
               onChange={(event) => setSearchValue(event.target.value)}
-              placeholder="Ejemplo: 1 o 0000000001"
+              onKeyDown={handleKeyDown}
+              placeholder="Ejemplo: 1, 0000000001 o 0010000001"
               className="flex-1 rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-700"
             />
 
@@ -109,6 +137,13 @@ export function CustomerSearchPage() {
               </p>
             </div>
           </div>
+
+          {foundByAccount && customer.accountNumber && (
+            <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 mb-4 text-sm text-blue-800">
+              <CreditCard size={15} className="shrink-0" />
+              <span>Cuenta buscada: <span className="font-mono font-bold">{customer.accountNumber}</span></span>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-700">
             <p><span className="font-medium">ID:</span> {customer.id || customer.customerId || '-'}</p>

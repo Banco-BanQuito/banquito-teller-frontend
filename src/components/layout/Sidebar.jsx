@@ -4,6 +4,7 @@ import {
   Search,
   Landmark,
   Building2,
+  CalendarCheck,
   Menu,
 } from 'lucide-react';
 
@@ -12,6 +13,7 @@ const menuItems = [
   { path: '/clientes', label: 'Buscar Cliente', Icon: Search },
   { path: '/ventanilla', label: 'Ventanilla', Icon: Landmark },
   { path: '/sucursales', label: 'Sucursales', Icon: Building2 },
+  { path: '/eod', label: 'Cierre de Día', Icon: CalendarCheck },
 ];
 
 const Sidebar = ({ isOpen, onToggle }) => {
