@@ -374,7 +374,10 @@ export function TellerOperationPage() {
   const [banks, setBanks] = React.useState([]);
   const [externalBankCode, setExternalBankCode] = React.useState('');
   const [externalAccountNumber, setExternalAccountNumber] = React.useState('');
-  const [beneficiaryName, setBeneficiaryName] = React.useState('');
+  const [beneficiaryFirstName, setBeneficiaryFirstName] = React.useState('');
+  const [beneficiaryLastName, setBeneficiaryLastName] = React.useState('');
+  const beneficiaryName = `${beneficiaryFirstName.trim()} ${beneficiaryLastName.trim()}`.trim();
+  const selectedExternalBank = banks.find((bank) => bank.code === externalBankCode);
 
   const [customer, setCustomer] = React.useState(null);
   const [customerAccounts, setCustomerAccounts] = React.useState(null);
@@ -543,8 +546,11 @@ export function TellerOperationPage() {
       if (!externalAccountNumber.trim()) {
         return 'Ingrese el número de cuenta externa.';
       }
-      if (!beneficiaryName.trim()) {
-        return 'Ingrese el nombre del beneficiario.';
+      if (!beneficiaryFirstName.trim()) {
+        return 'Ingrese los nombres del beneficiario.';
+      }
+      if (!beneficiaryLastName.trim()) {
+        return 'Ingrese los apellidos del beneficiario.';
       }
     }
 
@@ -633,7 +639,8 @@ export function TellerOperationPage() {
       setAmount('');
       setReference('');
       setExternalAccountNumber('');
-      setBeneficiaryName('');
+      setBeneficiaryFirstName('');
+      setBeneficiaryLastName('');
     } catch (error) {
       setMessage(getOperationErrorMessage(error, operationType));
     } finally {
@@ -853,6 +860,9 @@ export function TellerOperationPage() {
                   <option key={bank.code} value={bank.code}>{bank.name}</option>
                 ))}
               </select>
+              {selectedExternalBank?.description && (
+                <p className="text-xs text-slate-500 mt-2">{selectedExternalBank.description}</p>
+              )}
             </div>
           ) : (
             <div>
@@ -902,13 +912,25 @@ export function TellerOperationPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
-                Nombre del beneficiario
+                Nombres del beneficiario
               </label>
               <input
                 type="text"
-                value={beneficiaryName}
-                onChange={(event) => setBeneficiaryName(event.target.value)}
-                placeholder="Nombre completo"
+                value={beneficiaryFirstName}
+                onChange={(event) => setBeneficiaryFirstName(event.target.value)}
+                placeholder="Ej. Wendy Pamela"
+                className="w-full rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-700"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Apellidos del beneficiario
+              </label>
+              <input
+                type="text"
+                value={beneficiaryLastName}
+                onChange={(event) => setBeneficiaryLastName(event.target.value)}
+                placeholder="Ej. Herrera Quinte"
                 className="w-full rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-700"
               />
             </div>
