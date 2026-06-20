@@ -32,3 +32,4 @@ jobs:
           build-args: |
             VITE_ACCOUNT_API_BASE_URL=http://${{ secrets.VM_PUBLIC_IP }}:8081/api/v2
             VITE_PARTY_API_BASE_URL=http://${{ secrets.VM_PUBLIC_IP }}:8083
+            VITE_ACCOUNTING_API_BASE_URL=http://${{ secrets.VM_PUBLIC_IP }}:8082/api/v2
