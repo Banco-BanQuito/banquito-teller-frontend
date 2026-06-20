@@ -6,6 +6,7 @@ import {
   Banknote,
   ArrowDownCircle,
   ArrowUpCircle,
+  Landmark,
   ReceiptText,
   AlertCircle,
 } from 'lucide-react';
@@ -17,6 +18,11 @@ const partyApi = axios.create({
 
 const accountApi = axios.create({
   baseURL: import.meta.env.VITE_ACCOUNT_API_BASE_URL || 'http://localhost:8081/api/v2',
+  timeout: Number(import.meta.env.VITE_API_TIMEOUT || 10000),
+});
+
+const switchApi = axios.create({
+  baseURL: import.meta.env.VITE_SWITCH_API_BASE_URL || 'http://localhost:8010',
   timeout: Number(import.meta.env.VITE_API_TIMEOUT || 10000),
 });
 
@@ -32,6 +38,10 @@ const getOperationButtonClass = (operationType) => {
     return `${baseClass} bg-green-700 hover:bg-green-800 disabled:bg-green-400`;
   }
 
+  if (operationType === 'external') {
+    return `${baseClass} bg-blue-700 hover:bg-blue-800 disabled:bg-blue-400`;
+  }
+
   return `${baseClass} bg-red-700 hover:bg-red-800 disabled:bg-red-400`;
 };
 
@@ -44,12 +54,20 @@ const getOperationButtonLabel = (operationType, submitting) => {
     return 'Depositar';
   }
 
+  if (operationType === 'external') {
+    return 'Transferir';
+  }
+
   return 'Retirar';
 };
 
 const getOperationButtonIcon = (operationType) => {
   if (operationType === 'deposit') {
     return <ArrowDownCircle size={18} />;
+  }
+
+  if (operationType === 'external') {
+    return <Landmark size={18} />;
   }
 
   return <ArrowUpCircle size={18} />;
@@ -60,12 +78,20 @@ const getOperationEndpoint = (operationType) => {
     return '/accounts/teller/deposit';
   }
 
+  if (operationType === 'external') {
+    return '/accounts/transfer/external';
+  }
+
   return '/accounts/teller/withdrawal';
 };
 
 const getDefaultReference = (operationType) => {
   if (operationType === 'deposit') {
     return 'Depósito ventanilla';
+  }
+
+  if (operationType === 'external') {
+    return 'Transferencia interbancaria ventanilla';
   }
 
   return 'Retiro ventanilla';
@@ -76,12 +102,20 @@ const getSuccessMessage = (operationType) => {
     return 'Depósito realizado correctamente.';
   }
 
+  if (operationType === 'external') {
+    return 'Transferencia interbancaria enviada correctamente.';
+  }
+
   return 'Retiro realizado correctamente.';
 };
 
 const getReceiptOperationLabel = (operationType) => {
   if (operationType === 'deposit') {
     return 'Depósito';
+  }
+
+  if (operationType === 'external') {
+    return 'Transferencia interbancaria';
   }
 
   return 'Retiro';
@@ -337,6 +371,10 @@ export function TellerOperationPage() {
   const [amount, setAmount] = React.useState('');
   const [reference, setReference] = React.useState('');
   const [branchId, setBranchId] = React.useState('1');
+  const [banks, setBanks] = React.useState([]);
+  const [externalBankCode, setExternalBankCode] = React.useState('');
+  const [externalAccountNumber, setExternalAccountNumber] = React.useState('');
+  const [beneficiaryName, setBeneficiaryName] = React.useState('');
 
   const [customer, setCustomer] = React.useState(null);
   const [customerAccounts, setCustomerAccounts] = React.useState(null);
@@ -352,6 +390,18 @@ export function TellerOperationPage() {
   const [receipt, setReceipt] = React.useState(null);
 
   const tellerId = user?.id || user?.coreUserId || 1;
+
+  React.useEffect(() => {
+    switchApi.get('/api/v2/payments/routing-codes')
+      .then((response) => {
+        const externalBanks = (response.data || []).filter((bank) => bank.valueString === 'OFF_US');
+        setBanks(externalBanks);
+        if (externalBanks.length > 0) {
+          setExternalBankCode(externalBanks[0].code);
+        }
+      })
+      .catch(() => setBanks([]));
+  }, []);
 
   const fetchCustomerAccounts = async (customerId) => {
     setLoadingAccounts(true);
@@ -486,17 +536,45 @@ export function TellerOperationPage() {
       return 'Fondos insuficientes para el retiro.';
     }
 
+    if (operationType === 'external') {
+      if (!externalBankCode) {
+        return 'Seleccione el banco destino.';
+      }
+      if (!externalAccountNumber.trim()) {
+        return 'Ingrese el número de cuenta externa.';
+      }
+      if (!beneficiaryName.trim()) {
+        return 'Ingrese el nombre del beneficiario.';
+      }
+    }
+
     return '';
   };
 
-  const buildOperationPayload = () => ({
-    accountId: Number(balance.accountId || accountHolder?.accountId || accountSearch),
-    amount: Number(amount),
-    tellerId: Number(tellerId),
-    branchId: Number(branchId),
-    transactionUuid: crypto.randomUUID(),
-    reference: reference.trim() || getDefaultReference(operationType),
-  });
+  const buildOperationPayload = () => {
+    if (operationType === 'external') {
+      const bank = banks.find((b) => b.code === externalBankCode);
+      return {
+        originAccountId: Number(balance.accountId || accountHolder?.accountId || accountSearch),
+        externalBankCode,
+        externalBankName: bank?.name || externalBankCode,
+        externalAccountNumber: externalAccountNumber.trim(),
+        beneficiaryName: beneficiaryName.trim(),
+        amount: Number(amount),
+        transactionUuid: crypto.randomUUID(),
+        reference: reference.trim() || getDefaultReference(operationType),
+      };
+    }
+
+    return {
+      accountId: Number(balance.accountId || accountHolder?.accountId || accountSearch),
+      amount: Number(amount),
+      tellerId: Number(tellerId),
+      branchId: Number(branchId),
+      transactionUuid: crypto.randomUUID(),
+      reference: reference.trim() || getDefaultReference(operationType),
+    };
+  };
 
   const buildReceipt = (responseData, payload) => ({
     ...responseData,
@@ -504,10 +582,13 @@ export function TellerOperationPage() {
     amount: Number(amount),
     customerName: buildCustomerName(customer),
     customerIdentification: customer.identification,
-    accountId: payload.accountId,
+    accountId: payload.accountId || payload.originAccountId,
     accountNumber: balance.accountNumber || accountHolder?.accountNumber,
     reference: payload.reference,
     transactionUuid: payload.transactionUuid,
+    externalBankName: payload.externalBankName,
+    externalAccountNumber: payload.externalAccountNumber,
+    beneficiaryName: payload.beneficiaryName,
     dateTime: new Date().toLocaleString('es-EC'),
   });
 
@@ -547,10 +628,12 @@ export function TellerOperationPage() {
 
       setReceipt(buildReceipt(response.data, payload));
       setMessage(getSuccessMessage(operationType));
-      await refreshBalance(payload.accountId);
+      await refreshBalance(payload.accountId || payload.originAccountId);
 
       setAmount('');
       setReference('');
+      setExternalAccountNumber('');
+      setBeneficiaryName('');
     } catch (error) {
       setMessage(getOperationErrorMessage(error, operationType));
     } finally {
@@ -714,7 +797,7 @@ export function TellerOperationPage() {
             Registrar operación
           </h2>
           <p className="text-sm text-slate-500 mt-1">
-            Seleccione si desea realizar depósito o retiro.
+            Seleccione si desea realizar depósito, retiro o una transferencia a otro banco.
           </p>
         </div>
 
@@ -734,6 +817,7 @@ export function TellerOperationPage() {
             >
               <option value="deposit">Depósito</option>
               <option value="withdrawal">Retiro</option>
+              <option value="external">Transferencia a otro banco</option>
             </select>
           </div>
 
@@ -753,23 +837,42 @@ export function TellerOperationPage() {
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Sucursal
-            </label>
+          {operationType === 'external' ? (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Banco destino
+              </label>
 
-            <select
-              value={branchId}
-              onChange={(event) => setBranchId(event.target.value)}
-              className="w-full rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-700"
-            >
-              <option value="1">NORTE</option>
-              <option value="2">SUR</option>
-              <option value="3">CENTRO</option>
-              <option value="4">VALLES</option>
-              <option value="5">DIGITAL</option>
-            </select>
-          </div>
+              <select
+                value={externalBankCode}
+                onChange={(event) => setExternalBankCode(event.target.value)}
+                className="w-full rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-700"
+              >
+                {banks.length === 0 && <option value="">Sin bancos disponibles</option>}
+                {banks.map((bank) => (
+                  <option key={bank.code} value={bank.code}>{bank.name}</option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Sucursal
+              </label>
+
+              <select
+                value={branchId}
+                onChange={(event) => setBranchId(event.target.value)}
+                className="w-full rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-700"
+              >
+                <option value="1">NORTE</option>
+                <option value="2">SUR</option>
+                <option value="3">CENTRO</option>
+                <option value="4">VALLES</option>
+                <option value="5">DIGITAL</option>
+              </select>
+            </div>
+          )}
 
           <div className="flex items-end">
             <button
@@ -782,6 +885,38 @@ export function TellerOperationPage() {
             </button>
           </div>
         </div>
+
+        {operationType === 'external' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Número de cuenta externa
+              </label>
+              <input
+                type="text"
+                value={externalAccountNumber}
+                onChange={(event) => setExternalAccountNumber(event.target.value)}
+                placeholder="Cuenta en el banco destino"
+                className="w-full rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-700"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Nombre del beneficiario
+              </label>
+              <input
+                type="text"
+                value={beneficiaryName}
+                onChange={(event) => setBeneficiaryName(event.target.value)}
+                placeholder="Nombre completo"
+                className="w-full rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-700"
+              />
+            </div>
+            <p className="md:col-span-2 text-xs text-slate-500">
+              Se cobrará una comisión fija de $0.60 + IVA sobre la transferencia.
+            </p>
+          </div>
+        )}
 
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -822,7 +957,15 @@ export function TellerOperationPage() {
             <p><span className="font-medium">Cliente:</span> {receipt.customerName}</p>
             <p><span className="font-medium">Identificación:</span> {receipt.customerIdentification || '-'}</p>
             <p><span className="font-medium">Cuenta:</span> {receipt.accountNumber || receipt.accountId}</p>
-            <p><span className="font-medium">Nuevo saldo:</span> ${Number(receipt.newBalance || receipt.availableBalance || 0).toFixed(2)}</p>
+            <p><span className="font-medium">Nuevo saldo:</span> ${Number(receipt.newBalance || receipt.remainingBalance || receipt.availableBalance || 0).toFixed(2)}</p>
+            {receipt.operationType === 'external' && (
+              <>
+                <p><span className="font-medium">Banco destino:</span> {receipt.externalBankName}</p>
+                <p><span className="font-medium">Cuenta externa:</span> {receipt.externalAccountNumber}</p>
+                <p><span className="font-medium">Beneficiario:</span> {receipt.beneficiaryName}</p>
+                <p><span className="font-medium">Comisión:</span> ${Number(receipt.commissionAmount || 0).toFixed(2)}</p>
+              </>
+            )}
             <p className="md:col-span-2"><span className="font-medium">Referencia:</span> {receipt.reference}</p>
           </div>
 
