@@ -26,6 +26,29 @@ const switchApi = axios.create({
   timeout: Number(import.meta.env.VITE_API_TIMEOUT || 10000),
 });
 
+// crypto.randomUUID() exige contexto seguro (HTTPS); en HTTP plano no existe.
+function generateUuid() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    try {
+      return crypto.randomUUID();
+    } catch {
+      // contexto inseguro, sigue con el fallback
+    }
+  }
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = [...bytes].map((b) => b.toString(16).padStart(2, '0'));
+    return `${hex.slice(0, 4).join('')}-${hex.slice(4, 6).join('')}-${hex.slice(6, 8).join('')}-${hex.slice(8, 10).join('')}-${hex.slice(10, 16).join('')}`;
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 const isActiveStatus = (status) => {
   const value = String(status || '').toUpperCase();
   return value === 'ACTIVA' || value === 'ACTIVE' || value === 'ACTIVO';
@@ -567,7 +590,7 @@ export function TellerOperationPage() {
         externalAccountNumber: externalAccountNumber.trim(),
         beneficiaryName: beneficiaryName.trim(),
         amount: Number(amount),
-        transactionUuid: crypto.randomUUID(),
+        transactionUuid: generateUuid(),
         reference: reference.trim() || getDefaultReference(operationType),
       };
     }
@@ -577,7 +600,7 @@ export function TellerOperationPage() {
       amount: Number(amount),
       tellerId: Number(tellerId),
       branchId: Number(branchId),
-      transactionUuid: crypto.randomUUID(),
+      transactionUuid: generateUuid(),
       reference: reference.trim() || getDefaultReference(operationType),
     };
   };
