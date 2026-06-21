@@ -21,10 +21,10 @@ export const BranchesPage = () => {
         const response = await partyApi.get('/api/v2/branches');
         setBranches(response.data || []);
       } catch (err) {
-        if (!err.response) {
-          setError('No se puede conectar al party-service. Verifique que esté encendido.');
-        } else {
+        if (err.response) {
           setError(err.response?.data?.message || 'Error al cargar sucursales.');
+        } else {
+          setError('No se puede conectar al party-service. Verifique que esté encendido.');
         }
       } finally {
         setLoading(false);

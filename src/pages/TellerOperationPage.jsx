@@ -43,7 +43,7 @@ function generateUuid() {
     return `${hex.slice(0, 4).join('')}-${hex.slice(4, 6).join('')}-${hex.slice(6, 8).join('')}-${hex.slice(8, 10).join('')}-${hex.slice(10, 16).join('')}`;
   }
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
+    const r = Math.trunc(Math.random() * 16);
     const v = c === 'x' ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
@@ -52,6 +52,18 @@ function generateUuid() {
 const isActiveStatus = (status) => {
   const value = String(status || '').toUpperCase();
   return value === 'ACTIVA' || value === 'ACTIVE' || value === 'ACTIVO';
+};
+
+const getAccountCardClass = (selected, active) => {
+  if (selected) return 'border-blue-500 bg-blue-50';
+  if (active) return 'border-slate-200 bg-slate-50 hover:border-blue-300';
+  return 'border-red-200 bg-red-50 opacity-70';
+};
+
+const getAccountSelectButtonClass = (selected, active) => {
+  if (selected) return 'bg-blue-700 text-white';
+  if (active) return 'bg-slate-800 hover:bg-slate-900 text-white';
+  return 'bg-slate-300 text-slate-500 cursor-not-allowed';
 };
 
 const getOperationButtonClass = (operationType) => {
@@ -378,11 +390,14 @@ const printReceipt = (receipt) => {
 </body>
 </html>`;
 
-  const win = window.open('', '_blank', 'width=700,height=860,scrollbars=yes');
-  win.document.write(html);
-  win.document.close();
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url, '_blank', 'width=700,height=860,scrollbars=yes');
   win.focus();
-  setTimeout(() => { win.print(); }, 500);
+  setTimeout(() => {
+    win.print();
+    URL.revokeObjectURL(url);
+  }, 500);
 };
 
 export function TellerOperationPage() {
@@ -411,7 +426,6 @@ export function TellerOperationPage() {
   const [message, setMessage] = React.useState('');
   const [loadingCustomer, setLoadingCustomer] = React.useState(false);
   const [loadingAccounts, setLoadingAccounts] = React.useState(false);
-  const [loadingAccount, setLoadingAccount] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
   const [receipt, setReceipt] = React.useState(null);
 
@@ -483,6 +497,10 @@ export function TellerOperationPage() {
       setMessage('Cliente encontrado correctamente.');
       await fetchCustomerAccounts(found.id || found.customerId);
     } catch (firstError) {
+      if (import.meta.env.DEV) {
+        // eslint-disable-next-line no-console
+        console.debug('Customer search by id failed, trying by-account fallback:', firstError.message);
+      }
       try {
         const response = await partyApi.get(`/api/v2/customers/by-account/${customerSearch.trim()}`);
         const holder = response.data;
@@ -500,46 +518,6 @@ export function TellerOperationPage() {
     }
   };
 
-  const handleSearchAccount = async () => {
-    setMessage('');
-    setBalance(null);
-    setAccountHolder(null);
-    setReceipt(null);
-
-    if (!accountSearch.trim()) {
-      setMessage('Ingrese el ID o número de cuenta.');
-      return;
-    }
-
-    setLoadingAccount(true);
-
-    try {
-      let accountIdForBalance = accountSearch.trim();
-
-      if (accountSearch.trim().length > 6) {
-        const holderResponse = await partyApi.get(`/api/v2/customers/by-account/${accountSearch.trim()}`);
-        const holder = holderResponse.data;
-
-        setAccountHolder(holder);
-        accountIdForBalance = String(holder.accountId);
-        setCustomer(buildCustomerFromHolder(holder));
-      }
-
-      const balanceResponse = await accountApi.get(`/accounts/${accountIdForBalance}/balance`);
-      setBalance(balanceResponse.data);
-
-      if (!isActiveStatus(balanceResponse.data?.status)) {
-        setMessage('La cuenta no está activa. No se puede realizar depósito ni retiro.');
-        return;
-      }
-
-      setMessage('Cuenta consultada correctamente.');
-    } catch (error) {
-      setMessage(getAccountSearchErrorMessage(error));
-    } finally {
-      setLoadingAccount(false);
-    }
-  };
 
   const validateOperationForm = () => {
     if (!customer) {
@@ -780,7 +758,7 @@ export function TellerOperationPage() {
                   <div
                     key={acc.accountId}
                     className={`border rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 transition
-                      ${selected ? 'border-blue-500 bg-blue-50' : active ? 'border-slate-200 bg-slate-50 hover:border-blue-300' : 'border-red-200 bg-red-50 opacity-70'}`}
+                      ${getAccountCardClass(selected, active)}`}
                   >
                     <div className="text-sm text-slate-700 space-y-1">
                       <p className="font-semibold text-slate-900">{acc.accountNumber}</p>
@@ -798,7 +776,7 @@ export function TellerOperationPage() {
                       disabled={!active}
                       onClick={() => handleSelectAccount(acc)}
                       className={`shrink-0 px-4 py-2 rounded-xl text-sm font-semibold transition
-                        ${selected ? 'bg-blue-700 text-white' : active ? 'bg-slate-800 hover:bg-slate-900 text-white' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`}
+                        ${getAccountSelectButtonClass(selected, active)}`}
                     >
                       {selected ? 'Seleccionada' : 'Seleccionar'}
                     </button>
@@ -833,11 +811,12 @@ export function TellerOperationPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <label htmlFor="op-type-select" className="block text-sm font-medium text-slate-700 mb-2">
               Tipo de operación
             </label>
 
             <select
+              id="op-type-select"
               value={operationType}
               onChange={(event) => {
                 setOperationType(event.target.value);
@@ -852,11 +831,12 @@ export function TellerOperationPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <label htmlFor="op-amount-input" className="block text-sm font-medium text-slate-700 mb-2">
               Monto
             </label>
 
             <input
+              id="op-amount-input"
               type="number"
               value={amount}
               onChange={(event) => setAmount(event.target.value)}
@@ -869,11 +849,12 @@ export function TellerOperationPage() {
 
           {operationType === 'external' ? (
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <label htmlFor="op-external-bank-select" className="block text-sm font-medium text-slate-700 mb-2">
                 Banco destino
               </label>
 
               <select
+                id="op-external-bank-select"
                 value={externalBankCode}
                 onChange={(event) => setExternalBankCode(event.target.value)}
                 className="w-full rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-700"
@@ -889,11 +870,12 @@ export function TellerOperationPage() {
             </div>
           ) : (
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <label htmlFor="op-branch-select" className="block text-sm font-medium text-slate-700 mb-2">
                 Sucursal
               </label>
 
               <select
+                id="op-branch-select"
                 value={branchId}
                 onChange={(event) => setBranchId(event.target.value)}
                 className="w-full rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-700"
@@ -922,10 +904,11 @@ export function TellerOperationPage() {
         {operationType === 'external' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <label htmlFor="op-external-account-input" className="block text-sm font-medium text-slate-700 mb-2">
                 Número de cuenta externa
               </label>
               <input
+                id="op-external-account-input"
                 type="text"
                 value={externalAccountNumber}
                 onChange={(event) => setExternalAccountNumber(event.target.value)}
@@ -934,10 +917,11 @@ export function TellerOperationPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <label htmlFor="op-beneficiary-firstname-input" className="block text-sm font-medium text-slate-700 mb-2">
                 Nombres del beneficiario
               </label>
               <input
+                id="op-beneficiary-firstname-input"
                 type="text"
                 value={beneficiaryFirstName}
                 onChange={(event) => setBeneficiaryFirstName(event.target.value)}
@@ -946,10 +930,11 @@ export function TellerOperationPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <label htmlFor="op-beneficiary-lastname-input" className="block text-sm font-medium text-slate-700 mb-2">
                 Apellidos del beneficiario
               </label>
               <input
+                id="op-beneficiary-lastname-input"
                 type="text"
                 value={beneficiaryLastName}
                 onChange={(event) => setBeneficiaryLastName(event.target.value)}
@@ -964,11 +949,12 @@ export function TellerOperationPage() {
         )}
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">
+          <label htmlFor="op-reference-textarea" className="block text-sm font-medium text-slate-700 mb-2">
             Referencia
           </label>
 
           <textarea
+            id="op-reference-textarea"
             value={reference}
             onChange={(event) => setReference(event.target.value)}
             placeholder="Ejemplo: Operación en ventanilla"

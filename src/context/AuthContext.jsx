@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import PropTypes from 'prop-types';
 import { AuthContext } from './authContextObject';
 import { loginStaff } from '../api/authApi';
 
@@ -76,8 +77,8 @@ export function AuthProvider({ children }) {
       logout();
     };
 
-    window.addEventListener('logout', handleLogout);
-    return () => window.removeEventListener('logout', handleLogout);
+    globalThis.addEventListener('logout', handleLogout);
+    return () => globalThis.removeEventListener('logout', handleLogout);
   }, [logout]);
 
   const contextValue = useMemo(() => ({
@@ -92,3 +93,7 @@ export function AuthProvider({ children }) {
     </AuthContext.Provider>
   );
 }
+
+AuthProvider.propTypes = {
+  children: PropTypes.node.isRequired,
+};

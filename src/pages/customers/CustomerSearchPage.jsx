@@ -94,12 +94,13 @@ export function CustomerSearchPage() {
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-5 max-w-3xl">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">
+          <label htmlFor="customer-search-input" className="block text-sm font-medium text-slate-700 mb-2">
             Cédula, RUC, ID de cliente o número de cuenta
           </label>
 
           <div className="flex gap-3">
             <input
+              id="customer-search-input"
               type="text"
               value={searchValue}
               onChange={(event) => setSearchValue(event.target.value)}
