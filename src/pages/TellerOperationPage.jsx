@@ -767,8 +767,7 @@ export function TellerOperationPage() {
                           {String(acc.status?.value || acc.status || '').toUpperCase()}
                         </span>
                       </p>
-                      <p><span className="font-medium">Disponible:</span> ${Number(acc.availableBalance || 0).toFixed(2)} {acc.currency || 'USD'}</p>
-                      <p><span className="font-medium">Contable:</span> ${Number(acc.accountingBalance || 0).toFixed(2)}</p>
+
                     </div>
 
                     <button
@@ -789,7 +788,7 @@ export function TellerOperationPage() {
           {balance && (
             <div className={`${accountIsBlocked ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'} border rounded-xl p-3`}>
               <p className={`text-xs font-semibold ${accountIsBlocked ? 'text-red-700' : 'text-green-700'}`}>
-                {accountIsBlocked ? 'Cuenta inactiva — operación bloqueada' : `Cuenta activa · Saldo disponible: $${Number(balance.availableBalance || 0).toFixed(2)}`}
+                {accountIsBlocked ? 'Cuenta inactiva — operación bloqueada' : 'Cuenta activa'}
               </p>
             </div>
           )}
