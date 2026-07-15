@@ -26,7 +26,6 @@ export function EndOfDayPage() {
   const [runningEod, setRunningEod] = React.useState(false);
   const [eodResult, setEodResult] = React.useState(null);
   const [error, setError] = React.useState('');
-  const [autoBalancing, setAutoBalancing] = React.useState(false);
 
   const fetchBalance = React.useCallback(async () => {
     setLoadingBalance(true);
@@ -63,19 +62,6 @@ export function EndOfDayPage() {
       }
     } finally {
       setRunningEod(false);
-    }
-  };
-
-  const handleAutoBalance = async () => {
-    setAutoBalancing(true);
-    setError('');
-    try {
-      const res = await accountingApi.post('/accounting/auto-balance');
-      setBalance(res.data);
-    } catch (e) {
-      setError(e.response?.data?.message || 'Error al intentar cuadrar el balance automáticamente.');
-    } finally {
-      setAutoBalancing(false);
     }
   };
 
@@ -271,18 +257,6 @@ export function EndOfDayPage() {
                   : 'El balance no cuadra. Corrija los asientos antes de ejecutar el EOD.'}
               </div>
               <div className="flex items-center gap-3">
-                {!isBalanced && (
-                  <button
-                    onClick={handleAutoBalance}
-                    disabled={autoBalancing}
-                    className="inline-flex items-center gap-2 bg-amber-600 hover:bg-amber-700 disabled:bg-slate-300 disabled:text-slate-500 text-white font-semibold px-6 py-3 rounded-xl transition whitespace-nowrap"
-                  >
-                    {autoBalancing
-                      ? <><RefreshCw size={18} className="animate-spin" /> Cuadrando...</>
-                      : <><CalendarCheck size={18} /> Cuadrar Balance</>
-                    }
-                  </button>
-                )}
                 <button
                   onClick={handleRunEod}
                   disabled={!isBalanced || runningEod}

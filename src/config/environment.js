@@ -44,6 +44,12 @@ export const ENDPOINTS = {
     GET_ALL: '/holidays',
     CHECK_BUSINESS_DAY: (date) => `/holidays/business-day?date=${date}`,
   },
+
+  ACCOUNTING: {
+    ENTRIES: '/accounting/entries',
+    ENTRY: (entryUuid) => `/accounting/entries/${entryUuid}`,
+    REVERSE: (entryUuid) => `/accounting/entries/${entryUuid}/reverse`,
+  },
 };
 
 export default ENV;
