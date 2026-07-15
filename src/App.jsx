@@ -11,6 +11,7 @@ import { CustomerSearchPage } from './pages/customers/CustomerSearchPage';
 import { BranchesPage } from './pages/BranchesPage';
 import { TellerOperationPage } from './pages/TellerOperationPage';
 import { EndOfDayPage } from './pages/EndOfDayPage';
+import { AsientosContablesPage } from './pages/AsientosContablesPage';
 
 import './index.css';
 
@@ -58,6 +59,7 @@ const router = createBrowserRouter(
         { path: 'ventanilla', element: <TellerOperationPage /> },
         { path: 'sucursales', element: <BranchesPage /> },
         { path: 'eod', element: <EndOfDayPage /> },
+        { path: 'asientos-contables', element: <AsientosContablesPage /> },
       ],
     },
     {

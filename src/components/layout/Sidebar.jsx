@@ -6,6 +6,7 @@ import {
   Landmark,
   Building2,
   CalendarCheck,
+  BookOpen,
   Menu,
 } from 'lucide-react';
 
@@ -15,6 +16,7 @@ const menuItems = [
   { path: '/ventanilla', label: 'Ventanilla', Icon: Landmark },
   { path: '/sucursales', label: 'Sucursales', Icon: Building2 },
   { path: '/eod', label: 'Cierre de Día', Icon: CalendarCheck },
+  { path: '/asientos-contables', label: 'Asientos Contables', Icon: BookOpen },
 ];
 
 const Sidebar = ({ isOpen, onToggle }) => {
