@@ -22,6 +22,13 @@ const accountingApi = axios.create({
 const fmt = (n) => Number(n).toLocaleString('es-EC', { minimumFractionDigits: 2 });
 const shortUuid = (uuid) => (uuid ? `${uuid.slice(0, 8)}…` : '—');
 
+const entryReferences = (entry) => {
+  const refs = (entry.lines || [])
+    .map((line) => line.reference)
+    .filter((ref) => ref && ref.trim().length > 0);
+  return [...new Set(refs)];
+};
+
 const STATUS_STYLES = {
   REGISTRADO: 'bg-green-50 text-green-700 border-green-200',
   ANULADO: 'bg-slate-100 text-slate-500 border-slate-200',
@@ -215,9 +222,22 @@ export function AsientosContablesPage() {
                             : <XCircle size={18} className="text-red-600 inline" />}
                         </td>
                         <td className="px-4 py-3 text-xs text-slate-500">
-                          {entry.reversalOfEntryUuid && <span>Reverso de {shortUuid(entry.reversalOfEntryUuid)}</span>}
-                          {entry.reversedByEntryUuid && <span>Reversado por {shortUuid(entry.reversedByEntryUuid)}</span>}
-                          {!entry.reversalOfEntryUuid && !entry.reversedByEntryUuid && '—'}
+                          {(() => {
+                            const refs = entryReferences(entry);
+                            const hasReversalInfo = entry.reversalOfEntryUuid || entry.reversedByEntryUuid;
+                            if (refs.length === 0 && !hasReversalInfo) return '—';
+                            return (
+                              <div className="flex flex-col gap-0.5">
+                                {refs.length > 0 && (
+                                  <span className="font-mono text-slate-600" title={refs.join(', ')}>
+                                    {refs.join(', ')}
+                                  </span>
+                                )}
+                                {entry.reversalOfEntryUuid && <span>Reverso de {shortUuid(entry.reversalOfEntryUuid)}</span>}
+                                {entry.reversedByEntryUuid && <span>Reversado por {shortUuid(entry.reversedByEntryUuid)}</span>}
+                              </div>
+                            );
+                          })()}
                         </td>
                         <td className="px-4 py-3 text-right whitespace-nowrap">
                           <button
