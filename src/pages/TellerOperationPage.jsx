@@ -429,7 +429,7 @@ export function TellerOperationPage() {
   const [submitting, setSubmitting] = React.useState(false);
   const [receipt, setReceipt] = React.useState(null);
 
-  const tellerId = user?.id || user?.coreUserId || 1;
+  const tellerId = 1;
 
   React.useEffect(() => {
     switchApi.get('/api/v2/payments/routing-codes')
