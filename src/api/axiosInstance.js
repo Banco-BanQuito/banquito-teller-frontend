@@ -36,6 +36,17 @@ function findCoreUserId() {
   return null;
 }
 
+function findIdToken() {
+  try {
+    const stored = localStorage.getItem('banquito_auth');
+    if (!stored) return null;
+    const obj = JSON.parse(stored);
+    return obj?.idToken || null;
+  } catch {
+    return null;
+  }
+}
+
 function logRequestDebugInfo(config) {
   if (!import.meta.env.DEV) {
     return;
@@ -59,6 +70,10 @@ instance.interceptors.request.use((config) => {
     const coreUserId = findCoreUserId();
     if (coreUserId) {
       config.headers['X-Core-User-Id'] = coreUserId;
+    }
+    const idToken = findIdToken();
+    if (idToken) {
+      config.headers['Authorization'] = `Bearer ${idToken}`;
     }
   } catch (storageErr) {
     if (import.meta.env.DEV) {

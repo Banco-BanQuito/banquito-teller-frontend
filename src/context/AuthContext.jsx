@@ -29,17 +29,17 @@ export function AuthProvider({ children }) {
       const data = res.data;
 
       const userData = {
-        id: data.coreUserId,
-        name: data.fullName,
-        username: data.username,
-        role: data.role,
-        status: typeof data.status === 'string' ? data.status : data.status?.toString() || 'ACTIVO',
+        id: data.localId,
+        name: username,
+        username,
       };
 
       const newAuth = {
         isAuthenticated: true,
         portal: 'operador',
         user: userData,
+        idToken: data.idToken,
+        refreshToken: data.refreshToken,
       };
 
       setAuth(newAuth);

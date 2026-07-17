@@ -8,13 +8,10 @@ const ENV = {
   ENVIRONMENT: import.meta.env.VITE_ENVIRONMENT || 'development',
   ENABLE_ANALYTICS: import.meta.env.VITE_ENABLE_ANALYTICS === 'true' || false,
   DEBUG_MODE: import.meta.env.VITE_DEBUG_MODE === 'true' || false,
+  IDENTITY_PLATFORM_API_KEY: import.meta.env.VITE_IDENTITY_PLATFORM_API_KEY || '',
 };
 
 export const ENDPOINTS = {
-  AUTH: {
-    LOGIN_STAFF: '/auth/login/staff',
-    LOGIN_CUSTOMER: '/auth/login',
-  },
 
   CUSTOMERS: {
     GET_ALL: '/customers',
