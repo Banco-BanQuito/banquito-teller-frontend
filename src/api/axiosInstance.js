@@ -5,7 +5,8 @@ const instance = axios.create({
   baseURL: ENV.API_BASE_URL,
   timeout: ENV.API_TIMEOUT,
   headers: {
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
+    ...(ENV.APIGEE_API_KEY ? { 'x-api-key': ENV.APIGEE_API_KEY, apikey: ENV.APIGEE_API_KEY } : {})
   }
 });
 

@@ -16,6 +16,9 @@ import ENV, { ENDPOINTS } from '../config/environment';
 const accountingApi = axios.create({
   baseURL: ENV.ACCOUNTING_API_BASE_URL,
   timeout: 15000,
+  headers: {
+    ...(ENV.APIGEE_API_KEY ? { 'x-api-key': ENV.APIGEE_API_KEY, apikey: ENV.APIGEE_API_KEY } : {})
+  },
 });
 
 const fmt = (n) => Number(n).toLocaleString('es-EC', { minimumFractionDigits: 2 });
