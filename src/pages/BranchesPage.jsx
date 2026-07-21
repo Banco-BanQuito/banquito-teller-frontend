@@ -1,14 +1,11 @@
 import React from 'react';
 import axios from 'axios';
 import { Building2, AlertCircle, MapPin } from 'lucide-react';
-import ENV from '../config/environment';
+import { getAuthHeaders } from '../api/authHeaders';
 
 const partyApi = axios.create({
   baseURL: import.meta.env.VITE_PARTY_API_BASE_URL || 'http://localhost:8083',
   timeout: Number(import.meta.env.VITE_API_TIMEOUT || 10000),
-  headers: {
-    ...(ENV.APIGEE_API_KEY ? { 'x-api-key': ENV.APIGEE_API_KEY, apikey: ENV.APIGEE_API_KEY } : {})
-  },
 });
 
 export const BranchesPage = () => {
@@ -22,7 +19,7 @@ export const BranchesPage = () => {
       setError('');
 
       try {
-        const response = await partyApi.get('/api/v2/branches');
+        const response = await partyApi.get('/api/v2/branches', { headers: getAuthHeaders() });
         setBranches(response.data || []);
       } catch (err) {
         if (err.response) {

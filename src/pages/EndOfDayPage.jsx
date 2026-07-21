@@ -12,13 +12,11 @@ import {
   FileSpreadsheet,
 } from 'lucide-react';
 import ENV from '../config/environment';
+import { getAuthHeaders } from '../api/authHeaders';
 
 const accountingApi = axios.create({
   baseURL: ENV.ACCOUNTING_API_BASE_URL,
   timeout: 15000,
-  headers: {
-    ...(ENV.APIGEE_API_KEY ? { 'x-api-key': ENV.APIGEE_API_KEY, apikey: ENV.APIGEE_API_KEY } : {})
-  },
 });
 
 const fmt = (n) => Number(n).toLocaleString('es-EC', { minimumFractionDigits: 2 });
@@ -35,7 +33,7 @@ export function EndOfDayPage() {
     setError('');
     setEodResult(null);
     try {
-      const res = await accountingApi.get('/accounting/trial-balance');
+      const res = await accountingApi.get('/accounting/trial-balance', { headers: getAuthHeaders() });
       setBalance(res.data);
     } catch (e) {
       setError(
@@ -54,7 +52,7 @@ export function EndOfDayPage() {
     setRunningEod(true);
     setError('');
     try {
-      const res = await accountingApi.post('/accounting/eod', {});
+      const res = await accountingApi.post('/accounting/eod', {}, { headers: getAuthHeaders() });
       setEodResult(res.data);
       await fetchBalance();
     } catch (e) {

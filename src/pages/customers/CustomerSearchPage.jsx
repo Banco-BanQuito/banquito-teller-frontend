@@ -1,14 +1,11 @@
 import React from 'react';
 import axios from 'axios';
 import { Search, UserCheck, AlertCircle, CreditCard } from 'lucide-react';
-import ENV from '../../config/environment';
+import { getAuthHeaders } from '../../api/authHeaders';
 
 const partyApi = axios.create({
   baseURL: import.meta.env.VITE_PARTY_API_BASE_URL || 'http://localhost:8083',
   timeout: Number(import.meta.env.VITE_API_TIMEOUT || 10000),
-  headers: {
-    ...(ENV.APIGEE_API_KEY ? { 'x-api-key': ENV.APIGEE_API_KEY, apikey: ENV.APIGEE_API_KEY } : {})
-  },
 });
 
 const buildCustomerFromHolder = (holder) => ({
@@ -41,12 +38,12 @@ export function CustomerSearchPage() {
     setLoading(true);
 
     try {
-      const response = await partyApi.get(`/api/v2/customers/${searchValue.trim()}`);
+      const response = await partyApi.get(`/api/v2/customers/${searchValue.trim()}`, { headers: getAuthHeaders() });
       setCustomer(response.data);
       setMessage('Cliente encontrado correctamente.');
     } catch {
       try {
-        const response = await partyApi.get(`/api/v2/customers/by-account/${searchValue.trim()}`);
+        const response = await partyApi.get(`/api/v2/customers/by-account/${searchValue.trim()}`, { headers: getAuthHeaders() });
         setCustomer(buildCustomerFromHolder(response.data));
         setFoundByAccount(true);
         setMessage('Cliente encontrado por número de cuenta.');

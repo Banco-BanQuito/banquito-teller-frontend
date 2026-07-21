@@ -12,13 +12,11 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import ENV, { ENDPOINTS } from '../config/environment';
+import { getAuthHeaders } from '../api/authHeaders';
 
 const accountingApi = axios.create({
   baseURL: ENV.ACCOUNTING_API_BASE_URL,
   timeout: 15000,
-  headers: {
-    ...(ENV.APIGEE_API_KEY ? { 'x-api-key': ENV.APIGEE_API_KEY, apikey: ENV.APIGEE_API_KEY } : {})
-  },
 });
 
 const fmt = (n) => Number(n).toLocaleString('es-EC', { minimumFractionDigits: 2 });
@@ -55,7 +53,7 @@ export function AsientosContablesPage() {
       if (activeFilters.to) params.to = activeFilters.to;
       if (activeFilters.status) params.status = activeFilters.status;
 
-      const res = await accountingApi.get(ENDPOINTS.ACCOUNTING.ENTRIES, { params });
+      const res = await accountingApi.get(ENDPOINTS.ACCOUNTING.ENTRIES, { params, headers: getAuthHeaders() });
       setEntries(res.data.content);
       setTotalPages(res.data.totalPages);
     } catch (e) {

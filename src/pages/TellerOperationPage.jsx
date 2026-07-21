@@ -2,6 +2,7 @@ import React from 'react';
 import axios from 'axios';
 import { useAuth } from '../hooks/useAuth';
 import ENV from '../config/environment';
+import { getAuthHeaders } from '../api/authHeaders';
 import {
   Search,
   Banknote,
@@ -15,25 +16,16 @@ import {
 const partyApi = axios.create({
   baseURL: import.meta.env.VITE_PARTY_API_BASE_URL || 'http://localhost:8083',
   timeout: Number(import.meta.env.VITE_API_TIMEOUT || 10000),
-  headers: {
-    ...(ENV.APIGEE_API_KEY ? { 'x-api-key': ENV.APIGEE_API_KEY, apikey: ENV.APIGEE_API_KEY } : {})
-  },
 });
 
 const accountApi = axios.create({
   baseURL: import.meta.env.VITE_ACCOUNT_API_BASE_URL || 'http://localhost:8081/api/v2',
   timeout: Number(import.meta.env.VITE_API_TIMEOUT || 10000),
-  headers: {
-    ...(ENV.APIGEE_API_KEY ? { 'x-api-key': ENV.APIGEE_API_KEY, apikey: ENV.APIGEE_API_KEY } : {})
-  },
 });
 
 const switchApi = axios.create({
   baseURL: import.meta.env.VITE_SWITCH_API_BASE_URL || 'http://localhost:8010',
   timeout: Number(import.meta.env.VITE_API_TIMEOUT || 10000),
-  headers: {
-    ...(ENV.APIGEE_API_KEY ? { 'x-api-key': ENV.APIGEE_API_KEY, apikey: ENV.APIGEE_API_KEY } : {})
-  },
 });
 
 // crypto.randomUUID() exige contexto seguro (HTTPS); en HTTP plano no existe.
@@ -442,7 +434,7 @@ export function TellerOperationPage() {
   const tellerId = 1;
 
   React.useEffect(() => {
-    switchApi.get('/api/v2/payments/routing-codes')
+    switchApi.get('/api/v2/payments/routing-codes', { headers: getAuthHeaders() })
       .then((response) => {
         const externalBanks = (response.data || []).filter((bank) => bank.valueString === 'OFF_US');
         setBanks(externalBanks);
@@ -459,7 +451,7 @@ export function TellerOperationPage() {
     setBalance(null);
     setAccountHolder(null);
     try {
-      const response = await accountApi.get(`/accounts/customer/${customerId}`);
+      const response = await accountApi.get(`/accounts/customer/${customerId}`, { headers: getAuthHeaders() });
       setCustomerAccounts(response.data || []);
     } catch {
       setCustomerAccounts([]);
@@ -501,7 +493,7 @@ export function TellerOperationPage() {
     setLoadingCustomer(true);
 
     try {
-      const response = await partyApi.get(`/api/v2/customers/${customerSearch.trim()}`);
+      const response = await partyApi.get(`/api/v2/customers/${customerSearch.trim()}`, { headers: getAuthHeaders() });
       const found = response.data;
       setCustomer(found);
       setMessage('Cliente encontrado correctamente.');
@@ -512,7 +504,7 @@ export function TellerOperationPage() {
         console.debug('Customer search by id failed, trying by-account fallback:', firstError.message);
       }
       try {
-        const response = await partyApi.get(`/api/v2/customers/by-account/${customerSearch.trim()}`);
+        const response = await partyApi.get(`/api/v2/customers/by-account/${customerSearch.trim()}`, { headers: getAuthHeaders() });
         const holder = response.data;
 
         setAccountHolder(holder);
@@ -610,7 +602,7 @@ export function TellerOperationPage() {
   });
 
   const refreshBalance = async (accountId) => {
-    const balanceResponse = await accountApi.get(`/accounts/${accountId}/balance`);
+    const balanceResponse = await accountApi.get(`/accounts/${accountId}/balance`, { headers: getAuthHeaders() });
     setBalance(balanceResponse.data);
     setCustomerAccounts(prev =>
       prev
@@ -641,7 +633,7 @@ export function TellerOperationPage() {
     setSubmitting(true);
 
     try {
-      const response = await accountApi.post(endpoint, payload);
+      const response = await accountApi.post(endpoint, payload, { headers: getAuthHeaders() });
 
       setReceipt(buildReceipt(response.data, payload));
       setMessage(getSuccessMessage(operationType));
