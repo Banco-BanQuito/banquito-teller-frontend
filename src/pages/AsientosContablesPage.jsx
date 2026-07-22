@@ -164,6 +164,8 @@ export function AsientosContablesPage() {
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Fecha</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">ID Asiento</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Operación</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Cuenta debitada</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Cuenta acreditada / beneficiario</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Estado</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Debe</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Haber</th>
@@ -185,6 +187,8 @@ export function AsientosContablesPage() {
                           {shortUuid(entry.entryUuid)}
                         </td>
                         <td className="px-4 py-3 text-slate-800">{entry.description}</td>
+                        <td className="px-4 py-3 text-xs text-slate-700 min-w-[180px]">{entry.debitAccount || 'â€”'}</td>
+                        <td className="px-4 py-3 text-xs text-slate-700 min-w-[220px]">{entry.creditAccount || 'â€”'}</td>
                         <td className="px-4 py-3">
                           <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold border ${STATUS_STYLES[entry.status] || ''}`}>
                             {entry.status}
@@ -226,7 +230,7 @@ export function AsientosContablesPage() {
                       </tr>
                       {isExpanded && (
                         <tr className="bg-slate-50">
-                          <td colSpan={9} className="px-6 py-4">
+                          <td colSpan={11} className="px-6 py-4">
                             <div className="space-y-3">
                               <table className="w-full text-xs bg-white rounded-lg border border-slate-200 overflow-hidden">
                                 <thead>
