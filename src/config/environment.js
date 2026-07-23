@@ -48,7 +48,7 @@ export const ENDPOINTS = {
   ACCOUNTING: {
     ENTRIES: '/accounting/entries',
     ENTRY: (entryUuid) => `/accounting/entries/${entryUuid}`,
-    REVERSE: (entryUuid) => `/accounting/entries/${entryUuid}/reverse`,
+    CONTABLE_DATE: '/accounting/contable-date',
   },
 };
 

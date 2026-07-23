@@ -41,8 +41,23 @@ export function AsientosContablesPage() {
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
   const [expandedUuid, setExpandedUuid] = React.useState(null);
+  const [contableDate, setContableDate] = React.useState(null);
 
   const [filters, setFilters] = React.useState({ from: '', to: '', status: '' });
+
+  React.useEffect(() => {
+    let cancelled = false;
+    accountingApi
+      .get(ENDPOINTS.ACCOUNTING.CONTABLE_DATE, { headers: getAuthHeaders() })
+      .then((res) => {
+        if (!cancelled) setContableDate(res.data?.contableDate ?? null);
+      })
+      .catch(() => {
+        // No bloquea la página: si el dato no está disponible, simplemente no se muestra el badge.
+        if (!cancelled) setContableDate(null);
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   const fetchEntries = React.useCallback(async (pageToLoad, activeFilters) => {
     setLoading(true);
@@ -77,11 +92,21 @@ export function AsientosContablesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-slate-800">Asientos Contables</h1>
-        <p className="text-slate-500 mt-1">
-          Consulta los asientos registrados y verifica su cuadre y trazabilidad.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-800">Asientos Contables</h1>
+          <p className="text-slate-500 mt-1">
+            Consulta los asientos registrados y verifica su cuadre y trazabilidad.
+          </p>
+        </div>
+        {contableDate && (
+          <span
+            className="inline-flex items-center gap-2 bg-blue-50 text-blue-800 border border-blue-200 rounded-xl px-4 py-2 text-sm font-semibold"
+            title="Avanza únicamente con el cierre End-of-Day (EOD), no con la hora del sistema."
+          >
+            Fecha contable activa: {new Date(`${contableDate}T00:00:00`).toLocaleDateString('es-EC')}
+          </span>
+        )}
       </div>
 
       {error && (
@@ -164,8 +189,6 @@ export function AsientosContablesPage() {
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Fecha</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">ID Asiento</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Operación</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Cuenta debitada</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Cuenta acreditada / beneficiario</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Estado</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Debe</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Haber</th>
@@ -187,8 +210,6 @@ export function AsientosContablesPage() {
                           {shortUuid(entry.entryUuid)}
                         </td>
                         <td className="px-4 py-3 text-slate-800">{entry.description}</td>
-                        <td className="px-4 py-3 text-xs text-slate-700 min-w-[180px]">{entry.debitAccount || 'â€”'}</td>
-                        <td className="px-4 py-3 text-xs text-slate-700 min-w-[220px]">{entry.creditAccount || 'â€”'}</td>
                         <td className="px-4 py-3">
                           <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold border ${STATUS_STYLES[entry.status] || ''}`}>
                             {entry.status}
@@ -230,7 +251,7 @@ export function AsientosContablesPage() {
                       </tr>
                       {isExpanded && (
                         <tr className="bg-slate-50">
-                          <td colSpan={11} className="px-6 py-4">
+                          <td colSpan={9} className="px-6 py-4">
                             <div className="space-y-3">
                               <table className="w-full text-xs bg-white rounded-lg border border-slate-200 overflow-hidden">
                                 <thead>
