@@ -40,6 +40,7 @@ export function AuthProvider({ children }) {
         user: userData,
         idToken: data.idToken,
         refreshToken: data.refreshToken,
+        expiresAt: Date.now() + Number(data.expiresIn || 3600) * 1000,
       };
 
       setAuth(newAuth);

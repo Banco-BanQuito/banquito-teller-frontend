@@ -1,5 +1,6 @@
 import axios from 'axios';
 import ENV from '../config/environment';
+import { getFreshAuthSession } from './authSession';
 
 const instance = axios.create({
   baseURL: ENV.API_BASE_URL,
@@ -37,17 +38,6 @@ function findCoreUserId() {
   return null;
 }
 
-function findIdToken() {
-  try {
-    const stored = localStorage.getItem('banquito_auth');
-    if (!stored) return null;
-    const obj = JSON.parse(stored);
-    return obj?.idToken || null;
-  } catch {
-    return null;
-  }
-}
-
 function logRequestDebugInfo(config) {
   if (!import.meta.env.DEV) {
     return;
@@ -66,15 +56,15 @@ function logRequestDebugInfo(config) {
   }
 }
 
-instance.interceptors.request.use((config) => {
+instance.interceptors.request.use(async (config) => {
   try {
     const coreUserId = findCoreUserId();
     if (coreUserId) {
       config.headers['X-Core-User-Id'] = coreUserId;
     }
-    const idToken = findIdToken();
-    if (idToken) {
-      config.headers['Authorization'] = `Bearer ${idToken}`;
+    const session = await getFreshAuthSession();
+    if (session?.idToken) {
+      config.headers['Authorization'] = `Bearer ${session.idToken}`;
     }
   } catch (storageErr) {
     if (import.meta.env.DEV) {
